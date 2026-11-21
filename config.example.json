@@ -1,0 +1,22 @@
+{
+  "devices": {
+    "core": {
+      "label": "Core Switch",
+      "type": "cisco_ios",
+      "host": "192.0.2.1",
+      "username": "admin",
+      "port": 22
+    },
+    "firewall": {
+      "label": "Firewall",
+      "type": "paloalto_panos",
+      "host": "192.0.2.254",
+      "username": "admin",
+      "port": 22
+    }
+  },
+  "servers": [
+    {"key": "app01", "label": "App Server", "host": "198.51.100.10", "username": "administrator", "port": 5985},
+    {"key": "legacy01", "label": "Legacy Server", "host": "198.51.100.20", "username": "administrator", "port": 80, "use_ps": false}
+  ]
+}

@@ -1,0 +1,242 @@
+/* Common Windows 11 Fluent design */
+/* Win11 Fluent 공통 디자인 */
+:root {
+  --font: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", "Malgun Gothic", sans-serif;
+  --icon: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  --ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+
+  --bg: #f3f3f3;
+  --card: #fbfbfb;
+  --card-border: rgba(0, 0, 0, .0578);
+  --divider: rgba(0, 0, 0, .0803);
+  --text: #1a1a1a;
+  --text-2: #5d5d5d;
+  --text-3: #8b8b8b;
+  --input: rgba(255, 255, 255, .7);
+  --input-hover: rgba(249, 249, 249, .5);
+  --input-border: rgba(0, 0, 0, .0578);
+  --input-bottom: rgba(0, 0, 0, .4458);
+  --btn: rgba(255, 255, 255, .7);
+  --btn-hover: rgba(249, 249, 249, .5);
+  --btn-press: rgba(249, 249, 249, .3);
+  --btn-border: rgba(0, 0, 0, .0578);
+  --btn-bottom: rgba(0, 0, 0, .1622);
+  --subtle-hover: rgba(0, 0, 0, .0373);
+  --subtle-press: rgba(0, 0, 0, .0241);
+  --accent: #005fb8;
+  --accent-hover: #1a6fc0;
+  --accent-press: #3780c7;
+  --accent-text: #fff;
+  --ok: #0f7b0f; --ok-bg: #dff6dd;
+  --bad: #c42b1c; --bad-bg: #fde7e9;
+  --warn: #9d5d00; --warn-bg: #fff4ce;
+  --smoke: rgba(0, 0, 0, .3);
+  --dialog: #ffffff;
+  --dialog-footer: #f3f3f3;
+  --shadow: 0 2px 4px rgba(0, 0, 0, .04);
+  --shadow-dialog: 0 32px 64px rgba(0, 0, 0, .1876), 0 2px 21px rgba(0, 0, 0, .1474);
+  --flyout: #f9f9f9;
+  --flyout-border: rgba(0, 0, 0, .0578);
+  --shadow-flyout: 0 8px 16px rgba(0, 0, 0, .14);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #202020;
+  --card: #2b2b2b;
+  --card-border: rgba(0, 0, 0, .1);
+  --divider: rgba(255, 255, 255, .0837);
+  --text: #ffffff;
+  --text-2: #c5c5c5;
+  --text-3: #9d9d9d;
+  --input: rgba(255, 255, 255, .0605);
+  --input-hover: rgba(255, 255, 255, .0837);
+  --input-border: rgba(255, 255, 255, .0698);
+  --input-bottom: rgba(255, 255, 255, .5442);
+  --btn: rgba(255, 255, 255, .0605);
+  --btn-hover: rgba(255, 255, 255, .0837);
+  --btn-press: rgba(255, 255, 255, .0326);
+  --btn-border: rgba(255, 255, 255, .0698);
+  --btn-bottom: rgba(255, 255, 255, .0465);
+  --subtle-hover: rgba(255, 255, 255, .0605);
+  --subtle-press: rgba(255, 255, 255, .0419);
+  --accent: #60cdff;
+  --accent-hover: #5abce9;
+  --accent-press: #52a8d1;
+  --accent-text: #000;
+  --ok: #6ccb5f; --ok-bg: #393d1b;
+  --bad: #ff99a4; --bad-bg: #442726;
+  --warn: #fce100; --warn-bg: #433519;
+  --smoke: rgba(0, 0, 0, .3);
+  --dialog: #2b2b2b;
+  --dialog-footer: #202020;
+  --shadow: 0 2px 4px rgba(0, 0, 0, .13);
+  --shadow-dialog: 0 32px 64px rgba(0, 0, 0, .37), 0 2px 21px rgba(0, 0, 0, .37);
+  --flyout: #2c2c2c;
+  --flyout-border: rgba(0, 0, 0, .2);
+  --shadow-flyout: 0 8px 16px rgba(0, 0, 0, .26);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+/* Hidden attribute priority over display rules */
+/* display 지정보다 hidden 속성 우선 */
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 14px/20px var(--font);
+  -webkit-font-smoothing: antialiased;
+  user-select: none; cursor: default;
+}
+input, select, button, textarea { font: inherit; color: inherit; }
+/* Keyboard focus ring */
+/* 키보드 초점 테두리 */
+:focus { outline: none; }
+.kbd button:focus-visible, .kbd .check input:focus-visible, .kbd .toggle input:focus-visible {
+  outline: 2px solid var(--text); outline-offset: 1px;
+}
+.icon { font-family: var(--icon); font-style: normal; font-weight: normal; line-height: 1; }
+
+/* Buttons */
+/* 버튼 */
+.btn {
+  height: 32px; min-width: 80px; padding: 0 12px; border-radius: 4px;
+  background: var(--btn); border: 1px solid var(--btn-border); border-bottom-color: var(--btn-bottom);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:hover { background: var(--btn-hover); }
+.btn:active { background: var(--btn-press); color: var(--text-2); }
+.btn.accent { background: var(--accent); color: var(--accent-text); border-color: rgba(255, 255, 255, .08); border-bottom-color: rgba(0, 0, 0, .4); }
+.btn.accent:hover { background: var(--accent-hover); }
+.btn.accent:active { background: var(--accent-press); }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: .45; pointer-events: none; }
+.icon-btn {
+  width: 32px; height: 32px; border: 0; border-radius: 4px; background: transparent;
+  display: inline-grid; place-items: center; color: var(--text); font-size: 16px;
+}
+.icon-btn:hover { background: var(--subtle-hover); }
+.icon-btn:active { background: var(--subtle-press); color: var(--text-2); }
+.icon-btn:disabled { opacity: .4; pointer-events: none; }
+
+/* Inputs */
+/* 입력칸 */
+.input, select.input {
+  height: 32px; padding: 0 10px; border-radius: 4px; outline: none; width: 100%;
+  background: var(--input); border: 1px solid var(--input-border); border-bottom-color: var(--input-bottom);
+}
+.input:hover { background: var(--input-hover); }
+.input:focus { border-bottom: 2px solid var(--accent); padding-bottom: 0; background: var(--dialog); }
+.input::placeholder { color: var(--text-3); }
+.input.invalid { border-bottom: 2px solid var(--bad); }
+.input:disabled { opacity: .5; }
+select.input {
+  appearance: none; padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23888' stroke-width='1.2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+select.input option { background: var(--dialog); color: var(--text); }
+
+/* Dropdown for makeCombo */
+/* makeCombo용 드롭다운 */
+.combo-box {
+  height: 32px; width: 100%; padding: 0 10px 0 12px; border-radius: 4px; text-align: left;
+  background: var(--btn); border: 1px solid var(--btn-border); border-bottom-color: var(--btn-bottom);
+  display: flex; align-items: center; gap: 8px;
+}
+.combo-box:hover { background: var(--btn-hover); }
+.combo-box:active { background: var(--btn-press); }
+.combo-box:disabled { opacity: .45; }
+.combo-box .combo-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-box .combo-chev { font-size: 12px; color: var(--text-2); }
+.combo-popup {
+  position: fixed; z-index: 100; padding: 4px; border-radius: 8px;
+  background: var(--flyout); border: 1px solid var(--flyout-border); box-shadow: var(--shadow-flyout);
+  opacity: 0; transform: translateY(-4px); transition: opacity .15s var(--ease), transform .2s var(--ease);
+}
+.combo-popup.show { opacity: 1; transform: none; }
+.combo-item {
+  position: relative; height: 36px; padding: 0 12px 0 14px; border-radius: 4px;
+  display: flex; align-items: center; white-space: nowrap;
+}
+.combo-item.hot { background: var(--subtle-hover); }
+.combo-item.selected { background: var(--subtle-hover); }
+.combo-item.selected::before {
+  content: ""; position: absolute; left: 0; top: 10px; width: 3px; height: 16px; border-radius: 2px; background: var(--accent);
+}
+
+/* Settings card */
+/* 설정 카드 */
+.setting {
+  display: flex; align-items: center; gap: 16px; padding: 14px 16px; min-height: 68px;
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 8px; box-shadow: var(--shadow);
+}
+.setting .s-icon { font-size: 20px; width: 24px; text-align: center; flex: none; }
+.setting .s-text { flex: 1; min-width: 0; }
+.setting .s-desc { color: var(--text-2); font-size: 12px; line-height: 16px; }
+.setting .s-ctrl { width: 170px; flex: none; }
+
+/* Checkbox */
+/* 체크박스 */
+.check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input {
+  appearance: none; width: 20px; height: 20px; margin: 0; border-radius: 4px; flex: none;
+  border: 1px solid var(--input-bottom); background: var(--input); display: grid; place-items: center;
+}
+.check input:hover { background: var(--input-hover); }
+.check input:checked { background: var(--accent); border-color: var(--accent); }
+.check input:checked::after { content: "\E73E"; font-family: var(--icon); font-size: 12px; color: var(--accent-text); }
+
+/* Toggle switch */
+/* 토글 스위치 */
+.toggle { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; }
+.toggle input {
+  appearance: none; width: 40px; height: 20px; margin: 0; border-radius: 10px; position: relative; flex: none;
+  border: 1px solid var(--input-bottom); background: var(--input); transition: background .2s;
+}
+.toggle input::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--text-2); transition: left .25s var(--ease), background .2s;
+}
+.toggle input:checked { background: var(--accent); border-color: var(--accent); }
+.toggle input:checked::after { left: 23px; background: var(--accent-text); }
+
+/* Status icons in accent color */
+/* 강조색 상태 아이콘 */
+.status-icon {
+  display: inline-block; width: 16px; flex: none; text-align: center;
+  font-family: var(--icon); font-size: 16px; line-height: 16px; color: var(--accent);
+}
+/* Check icon */
+/* 체크 아이콘 */
+.status-icon.ok::before   { content: "\E73E"; }
+/* Warning triangle icon */
+/* 경고 삼각형 아이콘 */
+.status-icon.bad::before  { content: "\E7BA"; }
+/* Question mark icon */
+/* 물음표 아이콘 */
+.status-icon.warn::before { content: "\E9CE"; }
+/* X icon */
+/* X 아이콘 */
+.status-icon.fail::before { content: "\E711"; }
+.status-icon.skip { color: var(--text-3); }
+/* Minus icon for skipped state */
+/* 건너뜀 표시용 빼기 아이콘 */
+.status-icon.skip::before { content: "\E738"; }
+.st { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.st.mute { color: var(--text-3); }
+
+/* Status display */
+/* 상태 표시 */
+.pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--ok-bg); }
+.pill.bad { color: var(--bad); background: var(--bad-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.pill.mute { color: var(--text-3); font-weight: 400; }
+.ring {
+  width: 16px; height: 16px; border-radius: 50%; display: inline-block; vertical-align: middle;
+  border: 2px solid transparent; border-top-color: var(--accent); border-right-color: var(--accent);
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

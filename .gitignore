@@ -1,0 +1,22 @@
+# Files with real device addresses and accounts
+# 실제 장비 주소 및 계정 포함 파일
+config.json
+config.json.*
+config_*.json
+
+# Inspection results
+# 점검 결과
+*.csv
+captures/
+
+# Build output
+# 빌드 결과물
+build/
+dist/
+*.exe
+__pycache__/
+
+# Local tools
+# 로컬 도구
+.env
+.DS_Store

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title></title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  main { flex: 1; padding: 20px 20px 0; }
+  .check { margin: 16px 0 0 2px; }
+  footer {
+    padding: 20px; display: flex; justify-content: flex-end;
+    background: var(--dialog-footer); border-top: 1px solid var(--divider);
+  }
+  footer .btn { min-width: 120px; }
+</style>
+</head>
+<body>
+  <main>
+    <div class="setting">
+      <span class="icon s-icon">&#xF2B7;</span>
+      <div class="s-text">
+        <div data-i18n="s_lang"></div>
+        <div class="s-desc" data-i18n="lang_msg"></div>
+      </div>
+      <div class="s-ctrl"><select class="combo" id="lang"></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="remember"> <span data-i18n="lang_remember"></span></label>
+  </main>
+  <footer><button class="btn accent" id="next" data-i18n="lang_next"></button></footer>
+
+<script src="i18n.js"></script>
+<script src="controls.js"></script>
+<script>
+  const sel = document.getElementById("lang");
+  const next = document.getElementById("next");
+  for (const [code, name] of Object.entries(LANG_NAMES)) sel.add(new Option(name, code));
+  const combo = makeCombo(sel);
+
+  function render() {
+    LANG = sel.value;
+    document.documentElement.lang = LANG;
+    applyI18n();
+    window.pywebview.api.set_lang_title(LANG);
+  }
+
+  onApiReady(async () => {
+    const init = await window.pywebview.api.lang_init();
+    sel.value = init.lang;
+    combo.refresh();
+    applyTheme(init.theme, "lang");
+    darkQuery.addEventListener("change", () => applyTheme(THEME, "lang"));
+    render();
+    window.pywebview.api.ready("lang");
+  });
+
+  sel.addEventListener("change", render);
+  next.addEventListener("click", go);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !document.querySelector(".combo-popup") && !document.activeElement.matches("button")) go();
+  });
+
+  function go() {
+    if (next.disabled) return;
+    next.disabled = true;
+    sel.disabled = true;
+    next.textContent = t("loading");
+    window.pywebview.api.choose_language(sel.value, document.getElementById("remember").checked);
+  }
+</script>
+</body>
+</html>

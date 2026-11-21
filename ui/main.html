@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>RackCheck</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { display: flex; flex-direction: column; }
+  .page { flex: 1; overflow-y: auto; padding: 8px 28px 8px; }
+  .page::-webkit-scrollbar, .map-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+  .page::-webkit-scrollbar-thumb, .map-scroll::-webkit-scrollbar-thumb { background: var(--text-3); border-radius: 6px; border: 4px solid var(--bg); }
+  .map-scroll::-webkit-scrollbar-corner { background: transparent; }
+
+  header { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin: 0 -12px 4px 0; }
+
+  /* Top tabs with sliding indicator */
+  /* 미끄러지는 표시판 포함 상단 탭 */
+  :root { --seg-bg: rgba(0, 0, 0, .04); --seg-on: #ffffff; --grid: rgba(0, 0, 0, .045); --grid-major: rgba(0, 0, 0, .07); --dead: #c42b1c; }
+  :root[data-theme="dark"] { --seg-bg: rgba(255, 255, 255, .035); --seg-on: #3a3a3a; --grid: rgba(255, 255, 255, .04); --grid-major: rgba(255, 255, 255, .065); --dead: #ff99a4; }
+  .nav { flex: none; padding: 14px 28px 6px; }
+  .seg { position: relative; display: flex; padding: 3px; border-radius: 8px; background: var(--seg-bg); border: 1px solid var(--card-border); }
+  .seg-ind {
+    position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 6px;
+    background: var(--seg-on); border: 1px solid var(--card-border); box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+    transition: transform .35s var(--ease);
+  }
+  body[data-view="map"] .seg-ind { transform: translateX(100%); }
+  .seg-btn { position: relative; flex: 1; height: 34px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); transition: color .2s; }
+  .seg-btn:hover:not(.on) { color: var(--text); background: var(--subtle-hover); }
+  .seg-btn.on { color: var(--text); }
+  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  /* Network map */
+  /* 네트워크 맵 */
+  /* Horizontal scroll prevention for closed side bar */
+  /* 닫힌 사이드 바의 가로 스크롤 방지 */
+  #viewMap { position: relative; overflow: hidden; }
+  /* Map viewport with camera driven grid */
+  /* 카메라 연동 격자 포함 맵 뷰포트 */
+  .map-scroll {
+    position: absolute; inset: 0; overflow: hidden; touch-action: none; background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+      linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+  }
+  .map-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .pan-ready .map-scroll, .pan-ready .map-scroll * { cursor: grab !important; }
+  .panning .map-scroll, .panning .map-scroll * { cursor: grabbing !important; }
+  .map-zoom {
+    position: absolute; right: 16px; bottom: 16px; padding: 4px 10px; border-radius: 4px; font-size: 12px; color: var(--text-2);
+    background: var(--dialog); border: 1px solid var(--card-border); box-shadow: var(--shadow);
+    opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s var(--ease); pointer-events: none;
+  }
+  .map-zoom.show { opacity: 1; transform: none; }
+  .map-links { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .map-links .line { stroke: var(--text-3); stroke-width: 2; stroke-linecap: round; transition: stroke .3s; }
+  .map-links .alive .line { stroke: var(--accent); }
+  .map-links .dead .line { stroke: var(--dead); }
+  .map-links .sel .line { stroke-width: 3; stroke-dasharray: 6 4; }
+  .map-links .hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+  .link-mode .map-links .hit { pointer-events: none; }
+  #mapNodes { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+
+  .node {
+    position: absolute; width: 140px; margin: -32px 0 0 -70px; display: flex; flex-direction: column; align-items: center;
+    touch-action: none; transform-origin: 70px 32px;
+  }
+  .node .tile {
+    position: relative; width: 64px; height: 64px; border-radius: 8px; display: grid; place-items: center; font-size: 28px;
+    background: var(--card); border: 1px solid var(--card-border); box-shadow: var(--shadow);
+    color: var(--text-3); transition: color .3s, box-shadow .15s, transform .45s var(--spring);
+  }
+  .node.alive .tile { color: var(--accent); }
+  .node.dead .tile { color: var(--dead); }
+  .node:hover .tile { box-shadow: 0 4px 8px rgba(0, 0, 0, .1); }
+  .node.sel .tile, .node.pick .tile { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+  .node.drag { cursor: move; z-index: 5; }
+  .node.drag .tile { box-shadow: 0 10px 22px rgba(0, 0, 0, .18); transform: scale(1.06); }
+  .node.drag.over .tile { opacity: .9; }
+  .link-mode .node { cursor: pointer; }
+  .node .n-name, .node .n-sub {
+    max-width: 100%; padding: 0 4px; border-radius: 3px; background: var(--bg);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
+  }
+  .node .n-name { margin-top: 6px; font-size: 12px; line-height: 16px; }
+  .node .n-sub { font-size: 11px; line-height: 14px; color: var(--text-3); }
+  .n-del, .link-del {
+    position: absolute; width: 20px; height: 20px; border-radius: 50%; padding: 0; font-size: 8px;
+    border: 1px solid var(--card-border); background: var(--dialog); color: var(--text-2); box-shadow: var(--shadow-flyout);
+    display: grid; place-items: center; z-index: 3;
+  }
+  .n-del { top: -8px; left: calc(50% + 24px); display: none; }
+  .node.sel .n-del { display: grid; }
+  .link-del { margin: -10px 0 0 -10px; }
+  .n-del:hover, .link-del:hover { color: var(--bad); }
+
+  .map-tools {
+    position: absolute; top: 12px; left: 28px; right: 28px; pointer-events: none;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  }
+  .map-tools > * { pointer-events: auto; }
+  .map-bar { display: flex; align-items: center; gap: 8px; }
+  .fab {
+    width: 36px; height: 36px; border-radius: 50%; padding: 0; display: grid; place-items: center; font-size: 14px;
+    background: var(--dialog); border: 1px solid var(--btn-border); border-bottom-color: var(--btn-bottom); box-shadow: var(--shadow);
+    transition: transform .3s var(--ease), background .15s;
+  }
+  .fab:hover { background: var(--card); color: var(--accent); }
+  .fab.open { transform: rotate(45deg); }
+  .map-acts {
+    display: flex; gap: 8px; opacity: 0; transform: translateX(-8px); visibility: hidden;
+    transition: opacity .2s var(--ease), transform .3s var(--ease), visibility 0s .3s;
+  }
+  .map-acts.open { opacity: 1; transform: none; visibility: visible; transition-delay: 0s; }
+  .map-acts .btn:not(.accent) { background: var(--dialog); }
+  .map-acts .btn:not(.accent):hover { background: var(--card); }
+  .map-hint {
+    padding: 6px 12px; border-radius: 4px; font-size: 13px; color: var(--text-2);
+    background: var(--dialog); border: 1px solid var(--card-border); box-shadow: var(--shadow);
+  }
+  /* iOS style bundle icon with count badge */
+  /* 장비 수 배지 포함 iOS식 묶음 아이콘 */
+  :root { --folder: rgba(255, 255, 255, .62); --folder-border: rgba(0, 0, 0, .08); --mini: #ffffff; }
+  :root[data-theme="dark"] { --folder: rgba(255, 255, 255, .09); --folder-border: rgba(255, 255, 255, .1); --mini: #3a3a3a; }
+  .node .tile.folder {
+    border-radius: 16px; background: var(--folder); border-color: var(--folder-border);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+  .minis { display: grid; grid-template-columns: repeat(3, 16px); grid-auto-rows: 16px; gap: 2px; align-content: center; }
+  .mini {
+    display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; font-size: 11px;
+    background: var(--mini); color: var(--text-3); box-shadow: 0 0 0 .5px var(--card-border), 0 1px 1px rgba(0, 0, 0, .06);
+    transition: color .3s;
+  }
+  .mini.alive { color: var(--accent); }
+  .mini.dead { color: var(--dead); }
+  .node .badge {
+    position: absolute; right: -8px; bottom: -8px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+    display: grid; place-items: center; font: 600 12px/1 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    background: var(--text-3); color: var(--bg); border: 2px solid var(--bg); transition: background .3s;
+  }
+  .node.group.alive .badge { background: var(--accent); color: var(--accent-text); }
+  .node.group.dead .badge { background: var(--dead); color: var(--accent-text); }
+  .node.group.dead .tile.folder { box-shadow: 0 0 0 1.5px var(--dead), var(--shadow); }
+  .node.group.dead .n-sub { color: var(--dead); }
+  /* Folder plate while hovering over target */
+  /* 대상 위 대기 중 폴더 판 표시 */
+  .node .plate {
+    position: absolute; left: 50%; top: 0; width: 84px; height: 84px; margin: -10px 0 0 -42px; border-radius: 20px;
+    background: var(--folder); border: 1px solid var(--folder-border); backdrop-filter: blur(14px) saturate(1.4);
+    box-shadow: var(--shadow); transform: scale(.6); opacity: 0; pointer-events: none;
+    transition: transform .45s var(--spring), opacity .2s;
+  }
+  .node.fold-hint { z-index: 4; }
+  .node.fold-hint .plate { transform: none; opacity: 1; }
+  .node.fold-hint:not(.group) .tile { transform: scale(.82); }
+  .node.group.fold-hint .tile { transform: scale(1.16); }
+  .ghost-folder {
+    position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 16px; pointer-events: none;
+    background: var(--folder); border: 1px solid var(--folder-border); backdrop-filter: blur(14px); box-shadow: var(--shadow);
+  }
+
+  /* Windows 11 context menu */
+  /* Win11 오른쪽 클릭 메뉴 */
+  .ctx {
+    position: fixed; z-index: 20; min-width: 180px; padding: 4px; border-radius: 8px;
+    background: var(--ctx-bg); border: 1px solid var(--card-border); box-shadow: 0 8px 16px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+    backdrop-filter: blur(30px) saturate(1.8); display: flex; flex-direction: column;
+  }
+  :root { --ctx-bg: rgba(249, 249, 249, .86); }
+  :root[data-theme="dark"] { --ctx-bg: rgba(44, 44, 44, .9); }
+  .ctx.from-top { animation: ctx-in-top .2s cubic-bezier(.1, .9, .2, 1); }
+  .ctx.from-bottom { animation: ctx-in-bottom .2s cubic-bezier(.1, .9, .2, 1); }
+  .ctx.closing { opacity: 0; transition: opacity .1s; }
+  @keyframes ctx-in-top { from { opacity: 0; transform: translateY(-10px); } }
+  @keyframes ctx-in-bottom { from { opacity: 0; transform: translateY(10px); } }
+  .ctx-item {
+    display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 12px; border: 0; border-radius: 4px;
+    background: transparent; color: var(--text); text-align: left; font-size: 14px;
+  }
+  .ctx-item .icon { font-size: 16px; width: 16px; }
+  .ctx-item:hover, .ctx-item:focus-visible { background: var(--subtle-hover); outline: none; }
+  .ctx-item:active { background: var(--subtle-press); }
+
+  /* Bundle side bar */
+  /* 묶음 사이드 바 */
+  .map-side {
+    position: absolute; top: 8px; right: 8px; bottom: 8px; width: 320px; z-index: 4;
+    display: flex; flex-direction: column; border-radius: 8px;
+    background: var(--dialog); border: 1px solid var(--card-border); box-shadow: var(--shadow-dialog);
+    transform: translateX(calc(100% + 16px)); opacity: 0; visibility: hidden;
+    transition: transform .3s var(--ease), opacity .2s, visibility 0s .3s;
+  }
+  .map-side.open { transform: none; opacity: 1; visibility: visible; transition-delay: 0s; }
+  .side-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 4px 8px; }
+  .side-head h3 { margin: 0; font-size: 16px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: none; }
+  /* Inline rename text box */
+  /* 제목 즉시 수정 텍스트 상자 */
+  /* Clip prevention for text box border */
+  /* 텍스트 상자 테두리 잘림 방지 */
+  .side-head h3:has(.side-rename) { overflow: visible; }
+  .side-rename {
+    width: 200px; height: 30px; padding: 0 8px; margin: -3px 0; border-radius: 4px; outline: none;
+    font: inherit; color: var(--text); background: var(--card);
+    border: 1px solid var(--card-border); border-bottom: 2px solid var(--accent);
+  }
+  .side-count { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center;
+    font-size: 12px; font-weight: 600; background: var(--seg-bg); color: var(--text-2); }
+  .side-sum { padding: 0 16px 8px; font-size: 12px; color: var(--text-3); }
+  .side-sum.bad { color: var(--dead); }
+  .side-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 8px; }
+  .side-row { display: flex; align-items: center; gap: 12px; padding: 6px 4px 6px 8px; border-radius: 4px; }
+  .side-row:hover { background: var(--subtle-hover); }
+  .side-row { position: relative; user-select: none; transition: transform .15s var(--ease); }
+  .side-row.pressing { transform: scale(.98); transition: transform .35s ease; }
+  .sorting .side-row { transition: transform .22s var(--ease); }
+  .sorting .side-row.lifted {
+    z-index: 2; transition: none; cursor: grabbing;
+    background: var(--dialog); box-shadow: var(--shadow-flyout), 0 0 0 1px var(--card-border);
+  }
+  .sorting .side-row.lifted.dead { background: var(--bad-bg); }
+  .sorting .side-out { visibility: hidden; }
+  .side-row .dev-icon { color: var(--text-3); }
+  .side-row.alive .dev-icon { color: var(--accent); }
+  .side-row.dead .dev-icon, .side-row.dead .side-state { color: var(--dead); }
+  .side-row.dead { background: var(--bad-bg); }
+  .side-row .pick-name, .side-row .pick-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-state { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+  .side-row.alive .side-state { color: var(--accent); }
+  .side-out { opacity: 0; transition: opacity .15s; }
+  .side-row:hover .side-out, .side-out:focus-visible { opacity: 1; }
+
+  .map-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-3); pointer-events: none; }
+  body[data-view="map"] .infobar { bottom: 20px; }
+
+  /* Device picker backdrop blur */
+  /* 장비 추가 창 배경 흐림 */
+  .smoke.blur { background: rgba(0, 0, 0, .35); backdrop-filter: blur(6px); }
+  .pick-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 16px 4px 24px; }
+  .dialog .pick-head h3 { margin: 0; }
+  .pick-list { flex: 1; min-height: 0; padding: 0 16px 16px; overflow-y: auto; }
+  .pick-group { padding: 12px 8px 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .pick-item {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 6px 8px; border: 0; border-radius: 4px;
+    background: transparent; text-align: left;
+  }
+  .pick-item:hover { background: var(--subtle-hover); }
+  .pick-item:active { background: var(--subtle-press); }
+  .pick-item:disabled { opacity: .5; pointer-events: none; }
+  .pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .pick-sub { color: var(--text-3); font-size: 12px; line-height: 16px; }
+  .pick-state { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+  .pick-note { padding: 12px 8px 4px; color: var(--text-3); font-size: 13px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 8px; box-shadow: var(--shadow); margin-bottom: 16px;
+  }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0; padding: 14px 16px 6px; }
+  .empty { color: var(--text-3); padding: 10px 16px 4px; font-size: 13px; }
+  /* Card footer for add button */
+  /* 추가 버튼용 카드 하단 줄 */
+  .card-foot { display: flex; justify-content: flex-end; padding: 0 12px 10px; }
+  .add-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--divider);
+    background: var(--btn); display: grid; place-items: center; font-size: 12px; color: var(--text);
+  }
+  .add-btn:hover { background: var(--btn-hover); color: var(--accent); }
+  .add-btn:active { transform: scale(.94); }
+  .add-btn:disabled { opacity: .4; pointer-events: none; }
+
+  /* Device row with height animation */
+  /* 높이 애니메이션 포함 장비 행 */
+  .item { overflow: hidden; transition: height .33s var(--ease), opacity .25s var(--ease); }
+  .item + .item .row { border-top: 1px solid var(--divider); }
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+  .dev-icon { width: 32px; height: 32px; display: grid; place-items: center; color: var(--accent); font-size: 18px; flex: none; }
+  .dev-name { flex: 1; min-width: 0; }
+  .dev-name .name { display: flex; align-items: center; gap: 2px; }
+  .dev-name .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dev-name .edit { width: 26px; height: 26px; font-size: 13px; color: var(--text-2); }
+  .dev-name .sub { color: var(--text-3); font-size: 12px; line-height: 16px; }
+  .row .input { width: 210px; flex: none; }
+  .status { width: 32px; flex: none; text-align: center; }
+  .metrics { padding: 0 16px 10px 60px; margin-top: -4px; color: var(--text-2); font-size: 12px; line-height: 18px; }
+  .metrics:empty { display: none; }
+  .metrics .err { color: var(--bad); }
+  .metrics a { color: var(--accent); cursor: pointer; margin-left: 6px; text-decoration: none; }
+  .metrics pre {
+    margin: 6px 0 0; padding: 8px 10px; border-radius: 4px; background: var(--input); max-height: 160px;
+    overflow: auto; font: 11px/16px Consolas, monospace; white-space: pre-wrap; user-select: text;
+  }
+
+  .bottom {
+    display: flex; align-items: center; gap: 8px; padding: 14px 28px; flex-wrap: wrap;
+    border-top: 1px solid var(--divider); background: var(--dialog-footer);
+  }
+  .bottom .spacer { flex: 1; }
+  .bottom .btn { min-width: 120px; }
+
+  /* InfoBar */
+  /* 알림 막대 */
+  .infobar {
+    position: fixed; left: 28px; right: 28px; bottom: 76px; padding: 12px 16px; border-radius: 4px;
+    display: flex; align-items: center; gap: 12px; border: 1px solid var(--card-border);
+    background: var(--card); box-shadow: var(--shadow-dialog);
+    opacity: 0; transform: translateY(8px); pointer-events: none;
+    transition: opacity .25s var(--ease), transform .25s var(--ease);
+  }
+  .infobar.show { opacity: 1; transform: none; pointer-events: auto; }
+  .infobar .msg { flex: 1; }
+  .infobar .act { color: var(--accent); cursor: pointer; white-space: nowrap; }
+  .infobar .act:hover { text-decoration: underline; }
+  .dev-name .cam .ring { width: 13px; height: 13px; }
+
+  /* ContentDialog */
+  /* 대화 상자 */
+  .smoke {
+    position: fixed; inset: 0; background: var(--smoke); display: grid; place-items: center; z-index: 10;
+    opacity: 0; transition: opacity .2s linear;
+  }
+  .smoke.show { opacity: 1; }
+  .dialog {
+    width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 32px); display: flex; flex-direction: column;
+    background: var(--dialog); border: 1px solid var(--card-border); border-radius: 8px; box-shadow: var(--shadow-dialog);
+    overflow: hidden; transform: scale(1.05); transition: transform .25s var(--ease);
+  }
+  .smoke.show .dialog { transform: scale(1); }
+  .dialog .body { padding: 24px; overflow-y: auto; }
+  .dialog h3 { font: 600 20px/28px var(--font-display); margin: 0 0 16px; }
+  .field { margin-bottom: 12px; }
+  .field > label { display: block; margin-bottom: 6px; }
+  .field .hint { color: var(--text-3); font-size: 12px; line-height: 16px; margin-top: 6px; }
+  .field .error { color: var(--bad); font-size: 12px; line-height: 16px; margin-top: 4px; }
+  .field .error:empty { display: none; }
+  .pair { display: flex; gap: 12px; } .pair .field { flex: 1; }
+  .dialog .foot { display: flex; gap: 8px; padding: 24px; background: var(--dialog-footer); border-top: 1px solid var(--divider); }
+  /* Equal size dialog buttons */
+  /* 대화 상자 버튼 동일 크기 */
+  .dialog .foot .btn { flex: 1 1 0; min-width: 0; }
+  /* Line break preservation in message */
+  /* 문구 줄바꿈 유지 */
+  .dialog .msg { white-space: pre-line; }
+
+  @media (max-width: 600px) {
+    .page { padding: 20px 16px 8px; }
+    .row { flex-wrap: wrap; }
+    .row .input { width: 100%; order: 3; }
+    .metrics { padding-left: 16px; }
+    .bottom { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body data-view="check">
+  <nav class="nav">
+    <div class="seg"><span class="seg-ind"></span>
+      <button class="seg-btn on" data-view="check" data-i18n="nav_check"></button>
+      <button class="seg-btn" data-view="map" data-i18n="nav_map"></button>
+    </div>
+  </nav>
+
+  <div class="view" id="viewCheck">
+  <div class="page">
+    <header>
+      <button class="icon-btn icon" id="settingsBtn" data-i18n-title="tip_settings">&#xE713;</button>
+    </header>
+
+    <section class="card" data-kind="device">
+      <h2 data-i18n="sec_net"></h2>
+      <div class="rows"></div>
+      <div class="card-foot"><button class="add-btn icon" data-i18n-title="tip_add_net">&#xE710;</button></div>
+    </section>
+    <section class="card" data-kind="server">
+      <h2 data-i18n="sec_sv"></h2>
+      <div class="rows"></div>
+      <div class="card-foot"><button class="add-btn icon" data-i18n-title="tip_add_sv">&#xE710;</button></div>
+    </section>
+  </div>
+
+  <div class="bottom">
+    <label class="check"><input type="checkbox" id="savePw"> <span data-i18n="save_pw"></span></label>
+    <div class="spacer"></div>
+    <button class="btn" id="saveBtn" data-i18n="save_csv" disabled></button>
+    <button class="btn accent" id="runBtn" data-i18n="run"></button>
+  </div>
+  </div>
+
+  <!-- Network map view -->
+  <!-- 네트워크 맵 화면 -->
+  <div class="view" id="viewMap" hidden>
+    <div class="map-scroll" id="mapScroll">
+      <div class="map-world" id="mapWorld">
+        <svg class="map-links" id="mapLinks"></svg>
+        <div id="mapNodes"></div>
+      </div>
+    </div>
+    <div class="map-empty" id="mapEmpty" data-i18n="map_empty"></div>
+    <div class="map-tools">
+      <div class="map-bar">
+        <button class="fab icon" id="mapFab">&#xE710;</button>
+        <div class="map-acts" id="mapActs">
+          <button class="btn" id="mapAddDev" data-i18n="map_add_dev"></button>
+          <button class="btn" id="mapAddLink" data-i18n="map_add_link"></button>
+        </div>
+      </div>
+      <div class="map-hint" id="mapHint" hidden></div>
+    </div>
+    <div class="map-zoom" id="mapZoom">100%</div>
+    <aside class="map-side" id="mapSide" inert>
+      <div class="side-head">
+        <button class="icon-btn icon" id="mapSideClose" data-i18n-title="b_close">&#xE711;</button>
+        <h3 id="mapSideTitle" data-i18n-title="map_rename_tip"></h3>
+        <span class="side-count" id="mapSideCount"></span>
+      </div>
+      <div class="side-sum" id="mapSideSum"></div>
+      <div class="side-list" id="mapSideList"></div>
+    </aside>
+  </div>
+
+  <div class="infobar" id="infobar"><span class="status-icon"></span><span class="msg"></span>
+    <a class="act" hidden></a>
+    <button class="icon-btn icon" onclick="hideInfo()">&#xE711;</button></div>
+
+  <!-- Device edit and add dialog -->
+  <!-- 장비 편집 및 추가 창 -->
+  <template id="editTpl">
+    <div class="smoke"><div class="dialog" role="dialog">
+      <div class="body">
+        <h3 class="title"></h3>
+        <div class="field"><label data-i18n="f_name"></label><input class="input" name="label"><div class="error"></div></div>
+        <div class="field only-device"><label data-i18n="f_type"></label>
+          <select class="combo" name="type">
+            <option value="cisco_ios" data-i18n="type_cisco_ios"></option>
+            <option value="cisco_nxos" data-i18n="type_cisco_nxos"></option>
+            <option value="paloalto_panos" data-i18n="type_paloalto_panos"></option>
+          </select></div>
+        <div class="field"><label data-i18n="f_host"></label><input class="input" name="host"><div class="error"></div></div>
+        <div class="field"><label data-i18n="f_user"></label><input class="input" name="username"><div class="error"></div></div>
+        <div class="field"><label data-i18n="f_port"></label><input class="input" name="port" inputmode="numeric"><div class="error"></div></div>
+        <div class="field only-server">
+          <label class="toggle"><input type="checkbox" name="use_ps"> <span data-i18n="f_ps"></span></label>
+          <div class="hint" data-i18n="f_ps_hint"></div>
+        </div>
+      </div>
+      <div class="foot">
+        <button class="btn danger" data-act="delete" data-i18n="b_delete"></button>
+        <button class="btn accent" data-act="save"></button>
+        <button class="btn" data-act="cancel" data-i18n="b_cancel"></button>
+      </div>
+    </div></div>
+  </template>
+
+  <!-- Map device picker -->
+  <!-- 맵 장비 추가 창 -->
+  <template id="pickTpl">
+    <div class="smoke blur"><div class="dialog" role="dialog">
+      <div class="pick-head">
+        <h3 data-i18n="map_add_dev"></h3>
+        <button class="icon-btn icon" data-act="cancel" data-i18n-title="b_close">&#xE711;</button>
+      </div>
+      <div class="pick-list"></div>
+      <div class="foot">
+        <button class="btn" data-act="manual"><span class="icon">&#xE710;</span><span data-i18n="map_manual"></span></button>
+      </div>
+    </div></div>
+  </template>
+
+  <!-- Manual device dialog -->
+  <!-- 목록 외 장비 추가 창 -->
+  <template id="manualTpl">
+    <div class="smoke blur"><div class="dialog" role="dialog">
+      <div class="body">
+        <h3 data-i18n="map_manual"></h3>
+        <div class="field"><label data-i18n="f_name"></label><input class="input" name="label" maxlength="60"><div class="error"></div></div>
+        <div class="field"><label data-i18n="f_type"></label>
+          <select class="combo" name="type">
+            <option value="l2" data-i18n="ext_l2"></option>
+            <option value="l3" data-i18n="ext_l3"></option>
+            <option value="ap" data-i18n="ext_ap"></option>
+            <option value="firewall" data-i18n="ext_firewall"></option>
+            <option value="server" data-i18n="ext_server"></option>
+            <option value="esxi" data-i18n="ext_esxi"></option>
+            <option value="other" data-i18n="ext_other"></option>
+          </select></div>
+        <div class="field"><label data-i18n="f_host"></label><input class="input" name="host"><div class="error"></div>
+          <div class="hint" data-i18n="map_manual_hint"></div></div>
+      </div>
+      <div class="foot">
+        <button class="btn accent" data-act="save" data-i18n="b_add"></button>
+        <button class="btn" data-act="cancel" data-i18n="b_cancel"></button>
+      </div>
+    </div></div>
+  </template>
+
+  <!-- Bundle edit dialog -->
+  <!-- 묶음 편집 창 -->
+  <template id="groupTpl">
+    <div class="smoke blur"><div class="dialog" role="dialog">
+      <div class="body">
+        <h3 data-i18n="map_group_edit"></h3>
+        <div class="field"><label data-i18n="map_group_name"></label><input class="input" name="label" maxlength="60"><div class="error"></div></div>
+      </div>
+      <div class="foot">
+        <button class="btn accent" data-act="save" data-i18n="b_save"></button>
+        <button class="btn" data-act="cancel" data-i18n="b_cancel"></button>
+      </div>
+    </div></div>
+  </template>
+
+  <!-- Delete confirmation -->
+  <!-- 삭제 확인 -->
+  <template id="confirmTpl">
+    <div class="smoke"><div class="dialog" role="dialog">
+      <div class="body">
+        <h3 data-i18n="del_title"></h3>
+        <div class="msg"></div>
+      </div>
+      <div class="foot">
+        <button class="btn accent" data-act="ok" data-i18n="b_delete"></button>
+        <button class="btn" data-act="cancel" data-i18n="b_cancel"></button>
+      </div>
+    </div></div>
+  </template>
+
+  <!-- Settings dialog -->
+  <!-- 환경 설정 창 -->
+  <template id="settingsTpl">
+    <div class="smoke"><div class="dialog" role="dialog">
+      <div class="body">
+        <h3 data-i18n="settings"></h3>
+        <div class="field"><label data-i18n="s_lang"></label><select class="combo" name="lang"></select></div>
+        <div class="field"><label data-i18n="s_theme"></label>
+          <select class="combo" name="theme">
+            <option value="system" data-i18n="theme_system"></option>
+            <option value="light" data-i18n="theme_light"></option>
+            <option value="dark" data-i18n="theme_dark"></option>
+          </select></div>
+      </div>
+      <div class="foot">
+        <button class="btn accent" data-act="ok" data-i18n="b_ok"></button>
+        <button class="btn" data-act="cancel" data-i18n="b_cancel"></button>
+        <button class="btn" data-act="apply" data-i18n="b_apply"></button>
+      </div>
+    </div></div>
+  </template>
+
+<script src="i18n.js"></script>
+<script src="controls.js"></script>
+<script src="main.js"></script>
+<script src="map.js"></script>
+</body>
+</html>
