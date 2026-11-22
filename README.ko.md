@@ -12,7 +12,7 @@ Cisco IOS, Cisco NX-OS, Palo Alto, Windows Server를 하나의 데스크톱 앱�
 ![Python 3.14](https://img.shields.io/badge/python-3.14-3776AB)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2E7D32)](LICENSE)
 
-[English](README.md) | **한국어**
+[영어](README.md) | **한국어**
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/network-map-dark.png">
